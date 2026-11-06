@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Запись — {{ master.name }}</title>
+<style>
+:root{font-family:system-ui,-apple-system,sans-serif;color:#25242a;background:#faf7f8}
+body{margin:0;padding:24px}main{max-width:520px;margin:40px auto;background:white;border-radius:20px;padding:28px;box-shadow:0 8px 35px #0000000a}
+h1{margin:0 0 8px;font-size:28px}p{color:#6a6570}.slots{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-height:280px;overflow:auto}
+.slot{border:1px solid #ddd;border-radius:10px;padding:12px 4px;background:white;cursor:pointer}
+.slot.selected{background:#6d4569;color:white}input{box-sizing:border-box;width:100%;padding:12px;margin:6px 0 12px;border:1px solid #ddd;border-radius:10px;font-size:16px}
+button.submit{width:100%;background:#6d4569;color:white;border:0;padding:14px;border-radius:12px;font-size:16px;cursor:pointer}
+button:disabled{opacity:.5;cursor:not-allowed}#status{min-height:24px}
+</style></head><body><main>
+<h1>{{ master.name }}</h1><p>Выберите удобное время для записи</p>
+<div id="slots" class="slots">Загружаем свободное время…</div>
+<form id="booking">
+<label>Ваше имя<input id="name" required minlength="2" maxlength="100" autocomplete="name"></label>
+<label>Телефон<input id="phone" required type="tel" minlength="5" maxlength="32" autocomplete="tel"></label>
+<button class="submit" id="submit" disabled>Записаться</button>
+</form><p id="status" role="status"></p></main>
+<script>
+let selected=null;
+const slotsEl=document.querySelector('#slots'), submit=document.querySelector('#submit'), statusEl=document.querySelector('#status');
+async function loadSlots(){
+  slotsEl.textContent='Загружаем…';selected=null;submit.disabled=true;
+  try{
+    const response=await fetch('/api/slots');
+    if(!response.ok)throw Error('Не удалось получить расписание');
+    const data=await response.json();slotsEl.replaceChildren();
+    if(!data.slots.length){slotsEl.textContent='Свободных часов пока нет';return}
+    const fmt=new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',timeZone:data.timezone});
+    data.slots.forEach(slot=>{
+      const button=document.createElement('button');button.type='button';button.className='slot';
+      button.textContent=fmt.format(new Date(slot));
+      button.onclick=()=>{document.querySelectorAll('.slot').forEach(el=>el.classList.remove('selected'));button.classList.add('selected');selected=slot;submit.disabled=false};
+      slotsEl.append(button);
+    });
+  }catch(e){slotsEl.textContent=e.message}
+}
+document.querySelector('#booking').addEventListener('submit',async event=>{
+  event.preventDefault();if(!selected)return;
+  submit.disabled=true;statusEl.textContent='Сохраняем запись…';
+  try{
+    const response=await fetch('/api/book',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({slot:selected,name:document.querySelector('#name').value,phone:document.querySelector('#phone').value})});
+    if(!response.ok){const err=await response.json();throw Error(typeof err.detail==='string'?err.detail:'Не удалось записаться')}
+    statusEl.textContent='Готово! Вы записаны.';document.querySelector('#booking').reset();await loadSlots();
+  }catch(e){statusEl.textContent=e.message;await loadSlots()}
+});
+loadSlots();
+</script></body></html>
