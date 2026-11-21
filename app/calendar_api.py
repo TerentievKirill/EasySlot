@@ -58,26 +58,31 @@ def intervals(master, start, end):
     return available, booked
 
 
-def free_slots(master, start, end):
+def free_slots(master, start, end, duration_minutes=None, step_minutes=60):
     available, booked = intervals(master, start, end)
-    duration = timedelta(minutes=master["slot_minutes"])
+    duration = timedelta(minutes=duration_minutes or master["slot_minutes"])
+    if step_minutes <= 0 or 60 % step_minutes:
+        raise ValueError("step_minutes must be a positive divisor of 60")
+    step = timedelta(minutes=step_minutes)
     result = set()
     for a, b, _ in available:
-        cursor = a.replace(minute=0, second=0, microsecond=0)
+        cursor = a.replace(minute=(a.minute // step_minutes) * step_minutes,
+                           second=0, microsecond=0)
         if cursor < a:
-            cursor += timedelta(hours=1)
+            cursor += step
         while cursor + duration <= b:
             if cursor >= start and cursor + duration <= end and not any(
                 cursor < busy_end and cursor + duration > busy_start
                 for busy_start, busy_end in booked
             ):
                 result.add(cursor.isoformat())
-            cursor += timedelta(hours=1)
+            cursor += step
     return sorted(result)
 
 
-def create_booking(master, start, name, phone):
-    end = start + timedelta(minutes=master["slot_minutes"])
+def create_booking(master, start, name, phone, service_info=None):
+    duration = service_info["duration_minutes"] if service_info else master["slot_minutes"]
+    end = start + timedelta(minutes=duration)
     # Find the availability window that contains the selected hour.
     available, booked = intervals(master, start, end)
     if any(start < b and end > a for a, b in booked):
@@ -96,8 +101,10 @@ def create_booking(master, start, name, phone):
         }
 
     body = {
-        "summary": f"Запись: {name}",
-        "description": f"Клиент: {name}\nТелефон: {phone}\nВремя: {start:%d.%m.%Y %H:%M}–{end:%H:%M}",
+        "summary": f"Запись: {name}" + (f" — {service_info['name']}" if service_info else ""),
+        "description": (f"Клиент: {name}\nТелефон: {phone}\n"
+                        + (f"Услуга: {service_info['category']} / {service_info['name']}\n" if service_info else "")
+                        + f"Время: {start:%d.%m.%Y %H:%M}–{end:%H:%M}"),
         **timing(start, end),
     }
     booking = api.events().insert(calendarId=calendar_id, body=body).execute()
