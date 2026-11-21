@@ -21,6 +21,10 @@ log = logging.getLogger(__name__)
 templates = Jinja2Templates(directory="app/templates")
 locks = {}
 
+# Change this one value to show a longer/shorter Beauty booking horizon.
+BEAUTY_BOOKING_WINDOW_DAYS = 14
+DEFAULT_BOOKING_WINDOW_DAYS = 30  # Preserve Stella's existing behavior.
+
 @asynccontextmanager
 async def lifespan(app):
     initialize()
@@ -40,7 +44,20 @@ def master_for(request):
 def window(master):
     tz = ZoneInfo(master["timezone"])
     now = datetime.now(tz)
-    return now, now + timedelta(days=30)
+    days = booking_window_days(master)
+    if master.get("catalog") == "beauty":
+        # Fourteen calendar dates, including today, not part of a 15th day.
+        end = (now + timedelta(days=days)).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+    else:
+        end = now + timedelta(days=days)
+    return now, end
+
+def booking_window_days(master):
+    if master.get("catalog") == "beauty":
+        return BEAUTY_BOOKING_WINDOW_DAYS
+    return DEFAULT_BOOKING_WINDOW_DAYS
 
 @app.get("/health")
 def health():
@@ -64,7 +81,7 @@ def slots(request: Request, service_id: str | None = Query(default=None)):
             master, start, end,
             duration_minutes=service_info["duration_minutes"] if service_info else None,
             step_minutes=30 if service_info else 60,
-        ), "timezone": master["timezone"]}
+        ), "timezone": master["timezone"], "window_days": booking_window_days(master)}
     except Exception:
         log.exception("Failed to load slots")
         raise HTTPException(503, "Календарь временно недоступен")

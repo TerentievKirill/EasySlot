@@ -53,6 +53,34 @@ def test_old_master_keeps_hourly_fixed_duration():
         ]
 
 
+def test_beauty_window_shows_exactly_fourteen_calendar_dates():
+    start, end = main.window(MASTER)
+    assert main.booking_window_days(MASTER) == main.BEAUTY_BOOKING_WINDOW_DAYS == 14
+    assert (end.date() - start.date()).days == 14
+    assert (end.hour, end.minute, end.second, end.microsecond) == (0, 0, 0, 0)
+
+    old_master = {**MASTER, "catalog": ""}
+    old_start, old_end = main.window(old_master)
+    assert main.booking_window_days(old_master) == 30
+    assert old_end - old_start == timedelta(days=30)
+
+
+def test_century_long_availability_only_generates_slots_in_horizon():
+    tz = ZoneInfo("Asia/Almaty")
+    start = datetime(2026, 11, 23, 9, tzinfo=tz)
+    end = start + timedelta(days=14)
+    availability = [(
+        datetime(2020, 1, 1, tzinfo=tz),
+        datetime(2100, 1, 1, tzinfo=tz),
+        {"id": "century-long"},
+    )]
+    with patch.object(calendar_api, "intervals", return_value=(availability, [])):
+        slots = calendar_api.free_slots(MASTER, start, end, duration_minutes=30, step_minutes=30)
+    assert len(slots) == 14 * 48
+    assert slots[0] == start.isoformat()
+    assert slots[-1] == (end - timedelta(minutes=30)).isoformat()
+
+
 def test_api_requires_known_service_and_passes_its_duration():
     slot = (datetime.now(ZoneInfo("Asia/Almaty")) + timedelta(days=1)).replace(
         hour=10, minute=0, second=0, microsecond=0
@@ -68,6 +96,7 @@ def test_api_requires_known_service_and_passes_its_duration():
         response = client.get("/api/slots?service_id=manicure-gel")
         assert response.status_code == 200
         assert response.json()["slots"] == [slot]
+        assert response.json()["window_days"] == 14
         assert free.call_args.kwargs == {"duration_minutes": 120, "step_minutes": 30}
 
         response = client.post("/api/book", json={
@@ -90,6 +119,7 @@ def test_existing_master_booking_does_not_need_service():
           patch.object(main, "notify", new_callable=AsyncMock)):
         client = TestClient(main.app)
         assert client.get("/api/slots").status_code == 200
+        assert client.get("/api/slots").json()["window_days"] == 30
         assert free.call_args.kwargs == {"duration_minutes": None, "step_minutes": 60}
         response = client.post("/api/book", json={"slot": slot, "name": "Анна", "phone": "+77001234567"})
         assert response.status_code == 200
@@ -102,6 +132,7 @@ def test_beauty_photo_is_served_and_legacy_template_unchanged():
         response = client.get("/", headers={"host": "beauty.heartlab.app"})
     assert response.status_code == 200
     assert 'src="/static/beauty-master.png"' in response.text
+    assert "document.createElement('details')" in response.text
     assert "Время" in response.text
 
     photo = client.get("/static/beauty-master.png")

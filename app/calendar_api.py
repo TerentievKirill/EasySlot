@@ -66,12 +66,18 @@ def free_slots(master, start, end, duration_minutes=None, step_minutes=60):
     step = timedelta(minutes=step_minutes)
     result = set()
     for a, b, _ in available:
-        cursor = a.replace(minute=(a.minute // step_minutes) * step_minutes,
-                           second=0, microsecond=0)
-        if cursor < a:
+        # An availability event may last years. Only iterate over the requested
+        # booking horizon; never scan hours up to the original event's end.
+        first = max(a, start)
+        last = min(b, end)
+        if first + duration > last:
+            continue
+        cursor = first.replace(minute=(first.minute // step_minutes) * step_minutes,
+                               second=0, microsecond=0)
+        if cursor < first:
             cursor += step
-        while cursor + duration <= b:
-            if cursor >= start and cursor + duration <= end and not any(
+        while cursor + duration <= last:
+            if not any(
                 cursor < busy_end and cursor + duration > busy_start
                 for busy_start, busy_end in booked
             ):
