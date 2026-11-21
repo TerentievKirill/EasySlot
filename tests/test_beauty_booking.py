@@ -96,6 +96,26 @@ def test_existing_master_booking_does_not_need_service():
         assert create.call_args.args[4] is None
 
 
+def test_beauty_photo_is_served_and_legacy_template_unchanged():
+    client = TestClient(main.app)
+    with patch.object(main, "find_master", return_value=MASTER):
+        response = client.get("/", headers={"host": "beauty.heartlab.app"})
+    assert response.status_code == 200
+    assert 'src="/static/beauty-master.png"' in response.text
+    assert "Время" in response.text
+
+    photo = client.get("/static/beauty-master.png")
+    assert photo.status_code == 200
+    assert photo.headers["content-type"].startswith("image/png")
+    assert photo.content.startswith(b"\x89PNG\r\n\x1a\n")
+
+    old_master = {**MASTER, "template": "default.html", "catalog": ""}
+    with patch.object(main, "find_master", return_value=old_master):
+        old_page = client.get("/", headers={"host": "stella.heartlab.app"})
+    assert old_page.status_code == 200
+    assert "beauty-master.png" not in old_page.text
+
+
 def test_calendar_event_contains_service_and_occupies_full_duration():
     tz = ZoneInfo("Asia/Almaty")
     start = datetime(2026, 11, 23, 10, tzinfo=tz)

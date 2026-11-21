@@ -3,54 +3,99 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f8f5fa">
+  <meta name="theme-color" content="#f7edf3">
   <title>Онлайн-запись — {{ master.name }}</title>
   <style>
-    :root { font-family: system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:#30263a; background:#f8f5fa; }
+    :root { --plum:#47283f; --berry:#913d69; --berry-dark:#73304f; --rose:#ffe6ed; --muted:#786b78; font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:var(--plum); background:#f7edf3; }
     * { box-sizing:border-box; }
-    body { margin:0; min-width:320px; }
-    .page { width:min(100% - 32px, 700px); margin:36px auto 60px; }
-    .eyebrow { color:#8d6192; text-transform:uppercase; font-size:13px; font-weight:750; letter-spacing:.13em; }
-    h1 { font-size:clamp(30px, 6vw, 43px); letter-spacing:-.04em; line-height:1.12; margin:12px 0; }
-    .intro { color:#766a7d; line-height:1.55; margin:0 0 25px; font-size:16px; }
-    .sheet { background:#fff; border:1px solid #eee6f0; border-radius:24px; padding:28px; box-shadow:0 18px 55px #38283b0b; }
-    .step { display:flex; gap:11px; align-items:center; font-size:21px; font-weight:750; margin:0 0 16px; letter-spacing:-.02em; }
-    .number { display:grid; place-items:center; width:30px; height:30px; flex:none; border-radius:50%; background:#f1e5f1; color:#79507b; font-size:15px; }
-    .section { margin-bottom:28px; }
-    .categories { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:9px; }
-    .category { background:#faf8fb; border:1px solid #e8dfea; color:#615269; border-radius:13px; padding:13px 5px; min-height:52px; cursor:pointer; font-size:15px; font-weight:650; }
-    .category[aria-pressed="true"] { background:#79507b; border-color:#79507b; color:#fff; }
-    .services { display:grid; gap:9px; }
-    .service { display:flex; align-items:center; gap:12px; width:100%; text-align:left; background:#fff; border:1px solid #e8dfea; border-radius:13px; padding:15px; cursor:pointer; color:inherit; }
-    .service[aria-pressed="true"] { background:#f9f2f9; border-color:#97699b; box-shadow:inset 0 0 0 1px #97699b; }
-    .service .radio { flex:none; height:20px; width:20px; border:2px solid #c8b7cb; border-radius:50%; }
-    .service[aria-pressed="true"] .radio { border:6px solid #79507b; background:#fff; }
+    html { scroll-behavior:smooth; }
+    body { margin:0; min-width:320px; background:radial-gradient(ellipse 55% 34% at 95% 3%,#f3cede 0%,transparent 100%),radial-gradient(ellipse 50% 42% at 0% 68%,#efe0f2 0%,transparent 100%),#fbf8fb; }
+    .page { width:min(100% - 32px, 840px); margin:30px auto 54px; }
+    .hero { position:relative; display:grid; grid-template-columns:1.12fr .88fr; min-height:340px; overflow:hidden; border:1px solid #e9cfdc; border-radius:30px; background:linear-gradient(114deg,#f7e8ef 0%,#f2d8e5 54%,#dfbfda 100%); box-shadow:0 18px 52px #6b3a5917; isolation:isolate; }
+    .hero::before { content:""; position:absolute; height:440px; width:440px; border:1px solid #fff7; border-radius:50%; top:-220px; right:-65px; box-shadow:0 0 0 38px #ffffff16,0 0 0 76px #ffffff10; pointer-events:none; }
+    .hero-copy { position:relative; z-index:2; padding:39px 0 35px 40px; align-self:center; }
+    .eyebrow { display:inline-block; color:#914668; text-transform:uppercase; font-size:13px; font-weight:800; letter-spacing:.13em; }
+    h1 { margin:15px 0 18px; font-size:clamp(35px,5.4vw,53px); font-weight:780; letter-spacing:-.065em; line-height:1.07; }
+    h1 em { color:#aa4978; font-family:Georgia,"Times New Roman",serif; font-weight:500; letter-spacing:-.05em; }
+    .master-name { margin:0 0 10px; color:#6a3c59; font-size:16px; font-weight:750; }
+    .intro { max-width:340px; margin:0; font-size:16px; color:#70566a; line-height:1.6; }
+    .hero-link { display:inline-flex; align-items:center; justify-content:center; min-height:43px; margin-top:22px; padding:10px 20px; color:#fff; background:var(--berry); border-radius:12px; text-decoration:none; font-size:15px; font-weight:750; box-shadow:0 8px 18px #913d6930; }
+    .hero-link:hover { background:var(--berry-dark); }
+    .hero-link:focus-visible { outline:3px solid #d782ae; outline-offset:3px; }
+    .hero-visual { position:relative; min-height:340px; }
+    .portrait-aura { position:absolute; width:275px; height:275px; bottom:2px; right:29px; border-radius:50%; background:radial-gradient(circle,#f8bfd5 0%,#e6a5c6 64%,#d592bc 100%); opacity:.75; filter:blur(3px); }
+    .portrait { position:absolute; width:225px; height:338px; bottom:0; right:64px; object-fit:cover; object-position:50% 18%; border-radius:125px 125px 0 0; box-shadow:0 0 0 5px #fff8,0 10px 30px #74395728; -webkit-mask-image:linear-gradient(#000 0%,#000 81%,transparent 100%); mask-image:linear-gradient(#000 0%,#000 81%,transparent 100%); }
+    .hero-tag { position:absolute; z-index:2; bottom:30px; right:17px; max-width:183px; padding:11px 13px; border-radius:14px; border:1px solid #fff9; background:#fffdf5ed; color:#754963; box-shadow:0 8px 22px #75496326; font-size:13px; font-weight:750; line-height:1.35; text-align:center; }
+    .hero-sparkle { position:absolute; right:25px; top:24px; color:#fff; font-size:39px; line-height:1; text-shadow:0 3px 18px #9c5785; }
+    .sheet { scroll-margin-top:18px; margin-top:22px; background:#fffefa; border:1px solid #f0dfea; border-radius:26px; padding:30px; box-shadow:0 18px 55px #6a3a580b; }
+    .sheet-top { margin-bottom:28px; padding:0 0 20px; border-bottom:1px solid #f0e4ea; }
+    .sheet-top h2 { margin:0 0 7px; color:var(--plum); font-size:25px; letter-spacing:-.035em; }
+    .sheet-top p { margin:0; font-size:15px; line-height:1.5; color:var(--muted); }
+    .step { display:flex; gap:12px; align-items:center; font-size:20px; font-weight:750; margin:0 0 16px; letter-spacing:-.025em; }
+    .number { display:grid; place-items:center; width:31px; height:31px; flex:none; border-radius:50%; background:#f8e4ed; color:var(--berry); font-size:15px; }
+    .section { margin-bottom:29px; }
+    .categories { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+    .category { background:#fbf5f8; border:1px solid #ead8e2; color:#684961; border-radius:14px; padding:14px 6px; min-height:54px; cursor:pointer; font-size:15px; font-weight:700; transition:background .16s,border-color .16s; }
+    .category:hover { border-color:#c992ae; }
+    .category[aria-pressed="true"] { background:var(--berry); border-color:var(--berry); color:#fff; }
+    .services { display:grid; gap:10px; }
+    .service { display:flex; align-items:center; gap:12px; width:100%; text-align:left; background:#fff; border:1px solid #eadde5; border-radius:14px; padding:15px; cursor:pointer; color:inherit; transition:background .16s,border-color .16s; }
+    .service:hover { border-color:#c992ae; }
+    .service[aria-pressed="true"] { background:#fff2f7; border-color:#b96d93; box-shadow:inset 0 0 0 1px #b96d93; }
+    .service .radio { flex:none; height:20px; width:20px; border:2px solid #d3b6c5; border-radius:50%; }
+    .service[aria-pressed="true"] .radio { border:6px solid var(--berry); background:#fff; }
     .service-name { font-size:16px; font-weight:650; line-height:1.4; }
-    .duration { margin-left:auto; white-space:nowrap; color:#7d7084; font-size:14px; }
-    .days { display:grid; gap:21px; }
-    .day-name { font-weight:700; font-size:16px; margin:0 0 11px; text-transform:capitalize; }
+    .duration { margin-left:auto; white-space:nowrap; color:#877481; font-size:14px; }
+    .days { display:grid; gap:22px; }
+    .day-name { font-weight:750; font-size:16px; margin:0 0 11px; text-transform:capitalize; }
     .slots { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:9px; }
-    .slot { background:#fff; color:#54415d; border:1px solid #dfd3e1; padding:12px 5px; border-radius:11px; font-size:16px; cursor:pointer; }
-    .slot[aria-pressed="true"] { background:#79507b; border-color:#79507b; color:#fff; }
-    .hint { border:1px dashed #d9c9db; background:#fcfafd; border-radius:13px; padding:19px; color:#786a7d; font-size:15px; line-height:1.5; }
+    .slot { background:#fff; color:#6e4561; border:1px solid #e7d6e0; padding:12px 5px; border-radius:11px; font-size:16px; cursor:pointer; }
+    .slot:hover { border-color:#bf80a2; }
+    .slot[aria-pressed="true"] { background:var(--berry); border-color:var(--berry); color:#fff; }
+    .hint { border:1px dashed #dfc5d5; background:#fffbfd; border-radius:13px; padding:19px; color:#796878; font-size:15px; line-height:1.5; }
     .fields { display:grid; gap:15px; }
-    label { display:block; color:#54465a; font-weight:650; font-size:15px; }
-    input { font:inherit; display:block; margin-top:8px; width:100%; min-height:50px; border:1px solid #dcd0df; border-radius:11px; padding:12px 14px; background:#fff; color:#30263a; }
-    input:focus-visible, button:focus-visible { outline:3px solid #cc9ecf; outline-offset:2px; }
-    .submit { width:100%; border:0; background:#79507b; color:#fff; font-size:17px; font-weight:750; padding:16px; border-radius:12px; cursor:pointer; margin-top:20px; }
+    label { display:block; color:#5d4657; font-weight:650; font-size:15px; }
+    input { font:inherit; display:block; margin-top:8px; width:100%; min-height:50px; border:1px solid #dfcfda; border-radius:11px; padding:12px 14px; background:#fff; color:var(--plum); }
+    input:focus-visible, button:focus-visible { outline:3px solid #d89cb9; outline-offset:2px; }
+    .submit { width:100%; border:0; background:linear-gradient(110deg,#a24b78,#7e355c); color:#fff; font-size:17px; font-weight:750; padding:16px; border-radius:12px; cursor:pointer; margin-top:20px; box-shadow:0 8px 20px #913d6920; }
     button:disabled { opacity:.5; cursor:not-allowed; }
     .status { min-height:24px; font-size:15px; margin:15px 0 0; line-height:1.5; }
     .status.error { color:#a22f4f; } .status.success { color:#346745; }
-    .footer { text-align:center; color:#9a8d9e; font-size:13px; margin-top:18px; }
-    @media(max-width:520px) { .page { margin:24px auto 42px; } .sheet { padding:20px 16px; border-radius:19px; } .categories { gap:6px; } .category { font-size:13px; padding:11px 3px; } .slots { grid-template-columns:repeat(3,minmax(0,1fr)); } .service { padding:13px 10px; gap:8px; } .duration { font-size:13px; } }
+    .footer { text-align:center; color:#947f90; font-size:13px; margin-top:18px; }
+    @media(max-width:720px) { .hero-copy { padding-left:27px; } .portrait { right:30px; } .portrait-aura { right:0; } .hero-tag { right:10px; } }
+    @media(max-width:520px) {
+      .page { margin:16px auto 42px; } .hero { grid-template-columns:1fr; border-radius:23px; } .hero-copy { padding:28px 24px 4px; }
+      h1 { font-size:43px; margin:10px 0 13px; } .intro { max-width:300px; }
+      .hero-visual { min-height:252px; } .portrait { width:178px; height:257px; right:40px; } .portrait-aura { width:230px; height:230px; right:20px; bottom:-30px; }
+      .hero-tag { left:20px; right:auto; bottom:39px; width:137px; } .hero-sparkle { right:21px; top:3px; font-size:28px; }
+      .sheet { padding:22px 17px; border-radius:20px; margin-top:14px; } .categories { gap:6px; } .category { font-size:13px; padding:11px 3px; }
+      .slots { grid-template-columns:repeat(3,minmax(0,1fr)); } .service { padding:13px 10px; gap:8px; } .duration { font-size:13px; }
+    }
+    @media(prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } .category,.service { transition:none; } }
   </style>
 </head>
 <body>
   <main class="page">
-    <div class="eyebrow">Онлайн-запись</div>
-    <h1>{{ master.name }}</h1>
-    <p class="intro">Выберите процедуру и удобное время. Запись займёт всего пару минут.</p>
-    <div class="sheet">
+    <section class="hero" aria-label="Знакомство с мастером">
+      <div class="hero-copy">
+        <div class="eyebrow">Онлайн-запись</div>
+        <h1>Время<br><em>для себя</em></h1>
+        <p class="master-name">Ваш мастер — {{ master.name }}</p>
+        <p class="intro">Маникюр, педикюр и шугаринг. Выберите любимую процедуру и удобное время.</p>
+        <a class="hero-link" href="#booking-panel">Выбрать процедуру</a>
+      </div>
+      <div class="hero-visual">
+        <div class="portrait-aura" aria-hidden="true"></div>
+        <img class="portrait" src="/static/beauty-master.png" width="208" height="394" alt="Фото мастера красоты">
+        <div class="hero-tag">Красота начинается с заботы о себе</div>
+        <div class="hero-sparkle" aria-hidden="true">✦</div>
+      </div>
+    </section>
+    <div class="sheet" id="booking-panel">
+      <header class="sheet-top">
+        <h2>Записаться на процедуру</h2>
+        <p>Всего четыре простых шага — и время будет за вами.</p>
+      </header>
       <section class="section" aria-labelledby="categories-title">
         <h2 class="step" id="categories-title"><span class="number">1</span>Направление</h2>
         <div id="categories" class="categories" aria-label="Направление услуги"></div>

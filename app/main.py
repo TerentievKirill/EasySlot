@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request, Query
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
@@ -26,6 +27,7 @@ async def lifespan(app):
     yield
 
 app = FastAPI(title="EasySlot", lifespan=lifespan)
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 def master_for(request):
     # Trust Host only when reverse proxy preserves/validates it.
