@@ -196,7 +196,7 @@
         }
         document.querySelector('#booking').reset();
         await loadSlots();
-        status('Готово! Вы записаны. Мастер получил уведомление.', 'success');
+        status('Готово! Вы записаны.', 'success');
       } catch (error) {
         status(error.message, 'error');
         await loadSlots();
