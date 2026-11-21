@@ -26,8 +26,13 @@ def initialize():
             template TEXT NOT NULL DEFAULT 'default.html',
             slot_minutes INTEGER NOT NULL DEFAULT 60,
             timezone TEXT NOT NULL DEFAULT 'Asia/Almaty',
+            catalog TEXT NOT NULL DEFAULT '',
             active INTEGER NOT NULL DEFAULT 1
         )""")
+        # Existing installations already have the masters table. Keep all rows.
+        columns = {row["name"] for row in db.execute("PRAGMA table_info(masters)")}
+        if "catalog" not in columns:
+            db.execute("ALTER TABLE masters ADD COLUMN catalog TEXT NOT NULL DEFAULT ''")
 
 def find_master(hostname):
     with connect() as db:
