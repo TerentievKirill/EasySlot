@@ -44,8 +44,12 @@
     .service[aria-pressed="true"] { background:#fff2f7; border-color:#b96d93; box-shadow:inset 0 0 0 1px #b96d93; }
     .service .radio { flex:none; height:20px; width:20px; border:2px solid #d3b6c5; border-radius:50%; }
     .service[aria-pressed="true"] .radio { border:6px solid var(--berry); background:#fff; }
+    .service-info { flex:1; min-width:0; display:grid; gap:4px; }
     .service-name { font-size:16px; font-weight:650; line-height:1.4; }
-    .duration { margin-left:auto; white-space:nowrap; color:#877481; font-size:14px; }
+    .service-description { font-size:13px; line-height:1.45; color:#877481; }
+    .service-meta { flex:none; display:grid; gap:5px; justify-items:end; margin-left:auto; }
+    .price { color:var(--berry); font-size:16px; font-weight:750; white-space:nowrap; }
+    .duration { white-space:nowrap; color:#877481; font-size:14px; }
     .days { display:grid; gap:10px; }
     .day { border:1px solid #eadde5; border-radius:14px; background:#fff; overflow:hidden; }
     .day-summary { display:flex; align-items:center; gap:10px; min-height:58px; padding:14px 16px; cursor:pointer; list-style:none; }
@@ -78,7 +82,7 @@
       .hero-visual { min-height:252px; } .portrait { width:178px; height:257px; right:40px; } .portrait-aura { width:230px; height:230px; right:20px; bottom:-30px; }
       .hero-tag { left:20px; right:auto; bottom:39px; width:137px; } .hero-sparkle { right:21px; top:3px; font-size:28px; }
       .sheet { padding:22px 17px; border-radius:20px; margin-top:14px; } .categories { gap:6px; } .category { font-size:13px; padding:11px 3px; }
-      .slots { grid-template-columns:repeat(3,minmax(0,1fr)); } .day-summary { display:grid; grid-template-columns:minmax(0,1fr) 24px; gap:3px 10px; padding:13px 11px; } .day-name { grid-column:1; grid-row:1; } .day-count { grid-column:1; grid-row:2; font-size:14px; } .day-summary::after { grid-column:2; grid-row:1 / span 2; align-self:center; } .day .slots { padding:11px; } .service { padding:13px 10px; gap:8px; } .duration { font-size:13px; }
+      .slots { grid-template-columns:repeat(3,minmax(0,1fr)); } .day-summary { display:grid; grid-template-columns:minmax(0,1fr) 24px; gap:3px 10px; padding:13px 11px; } .day-name { grid-column:1; grid-row:1; } .day-count { grid-column:1; grid-row:2; font-size:14px; } .day-summary::after { grid-column:2; grid-row:1 / span 2; align-self:center; } .day .slots { padding:11px; } .service { padding:13px 10px; gap:8px; } .duration,.service-description { font-size:12px; } .price { font-size:15px; }
     }
     @media(prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } .category,.service { transition:none; } }
   </style>
@@ -137,7 +141,14 @@
     const daysEl = document.querySelector('#days');
     const submitEl = document.querySelector('#submit');
     const statusEl = document.querySelector('#status');
+    const priceFmt = new Intl.NumberFormat('ru-RU');
     let categories = [], categoryId = null, serviceId = null, selectedSlot = null, requestSeq = 0;
+
+    function formatDuration(minutes) {
+      if (minutes < 60) return `${minutes} мин`;
+      const hours = Math.floor(minutes / 60), rest = minutes % 60;
+      return `${hours} ч${rest ? ` ${rest} мин` : ''}`;
+    }
 
     function hint(message) {
       const el = document.createElement('div');
@@ -169,10 +180,21 @@
         button.className = 'service';
         button.setAttribute('aria-pressed', 'false');
         const radio = document.createElement('span'); radio.className = 'radio'; radio.setAttribute('aria-hidden', 'true');
+        const info = document.createElement('span'); info.className = 'service-info';
         const name = document.createElement('span'); name.className = 'service-name'; name.textContent = item.name;
+        info.append(name);
+        if (item.description) {
+          const description = document.createElement('span'); description.className = 'service-description';
+          description.textContent = item.description;
+          info.append(description);
+        }
+        const meta = document.createElement('span'); meta.className = 'service-meta';
+        const price = document.createElement('span'); price.className = 'price';
+        price.textContent = `${priceFmt.format(item.price_kzt)} ₸`;
         const duration = document.createElement('span'); duration.className = 'duration';
-        duration.textContent = `${item.duration_minutes} мин`;
-        button.append(radio, name, duration);
+        duration.textContent = formatDuration(item.duration_minutes);
+        meta.append(price, duration);
+        button.append(radio, info, meta);
         button.addEventListener('click', () => {
           serviceId = item.id;
           servicesEl.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b === button)));

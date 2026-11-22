@@ -5,6 +5,8 @@ from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 
+from .services import format_price
+
 SCOPES = ["https://www.googleapis.com/auth/calendar.events"]
 AVAILABLE = "доступен для записи"
 BOOKING_PREFIX = "запись:"
@@ -110,6 +112,8 @@ def create_booking(master, start, name, phone, service_info=None):
         "summary": f"Запись: {name}" + (f" — {service_info['name']}" if service_info else ""),
         "description": (f"Клиент: {name}\nТелефон: {phone}\n"
                         + (f"Услуга: {service_info['category']} / {service_info['name']}\n" if service_info else "")
+                        + (f"Стоимость: {format_price(service_info['price_kzt'])}\n"
+                           if service_info and "price_kzt" in service_info else "")
                         + f"Время: {start:%d.%m.%Y %H:%M}–{end:%H:%M}"),
         **timing(start, end),
     }
