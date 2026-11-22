@@ -1,3 +1,4 @@
+import asyncio
 import sqlite3
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, patch
@@ -5,8 +6,8 @@ from zoneinfo import ZoneInfo
 
 from fastapi.testclient import TestClient
 
-from app import calendar_api, db, main
-from app.services import CATALOGS, find_service
+from app import calendar_api, db, main, telegram
+from app.services import CATALOGS, find_service, format_price
 
 
 MASTER = {
@@ -24,7 +25,42 @@ def test_catalog_ids_unique_and_durations_valid():
     assert len({item["id"] for item in services}) == len(services)
     assert len(CATALOGS["beauty"]) == 3
     assert all(item["duration_minutes"] > 0 for item in services)
-    assert find_service(MASTER, "manicure-gel")["duration_minutes"] == 120
+    assert len(services) == 22
+    assert all(item["price_kzt"] > 0 for item in services)
+    assert [(category["id"], len(category["services"])) for category in CATALOGS["beauty"]] == [
+        ("manicure", 5), ("pedicure", 3), ("sugaring", 14)
+    ]
+    assert [(item["name"], item["duration_minutes"], item["price_kzt"]) for item in services] == [
+        ("Обработка", 45, 5000),
+        ("Маникюр без укрепления", 90, 6000),
+        ("Маникюр с укреплением", 120, 7000),
+        ("Наращивание ногтей", 150, 8000),
+        ("Френч", 30, 1000),
+        ("Педикюр (обработка)", 40, 5000),
+        ("Педикюр с покрытием", 60, 7000),
+        ("Обработка пяточек", 30, 4000),
+        ("Комплекс «Классика»", 40, 8000),
+        ("Комплекс «Всё включено»", 90, 12000),
+        ("Лицо полностью", 30, 3000),
+        ("Усики", 10, 1000),
+        ("Баки", 10, 1000),
+        ("Подмышечная зона", 10, 1500),
+        ("Руки до локтя", 30, 3000),
+        ("Руки полностью", 40, 4000),
+        ("Бикини классика", 15, 4000),
+        ("Бикини глубокое", 30, 5000),
+        ("Живот", 20, 3000),
+        ("Поясница", 20, 3000),
+        ("Ноги полностью", 40, 5000),
+        ("Ноги до колен", 30, 4000),
+    ]
+    assert find_service(MASTER, "sugaring-classic-set")["description"] == (
+        "Подмышки + глубокое бикини + ноги до колен"
+    )
+    assert find_service(MASTER, "sugaring-all-inclusive")["description"] == (
+        "Подмышки + руки полностью + глубокое бикини + ноги полностью"
+    )
+    assert format_price(12000) == "12 000 ₸"
 
 
 def test_long_service_requires_full_free_window():
@@ -97,14 +133,18 @@ def test_api_requires_known_service_and_passes_its_duration():
         assert response.status_code == 200
         assert response.json()["slots"] == [slot]
         assert response.json()["window_days"] == 14
-        assert free.call_args.kwargs == {"duration_minutes": 120, "step_minutes": 30}
+        assert free.call_args.kwargs == {"duration_minutes": 90, "step_minutes": 30}
+        service = client.get("/api/services").json()["categories"][0]["services"][1]
+        assert service["price_kzt"] == 6000
+        assert service["duration_minutes"] == 90
 
         response = client.post("/api/book", json={
             "slot": slot, "name": "Анна", "phone": "+77001234567", "service_id": "manicure-gel"
         })
         assert response.status_code == 200
-        assert create.call_args.args[4]["name"] == "Маникюр с гель-лаком"
-        assert create.call_args.args[4]["duration_minutes"] == 120
+        assert create.call_args.args[4]["name"] == "Маникюр без укрепления"
+        assert create.call_args.args[4]["duration_minutes"] == 90
+        assert create.call_args.args[4]["price_kzt"] == 6000
         assert notify.call_args.args[4]["category"] == "Маникюр"
 
 
@@ -133,6 +173,8 @@ def test_beauty_photo_is_served_and_legacy_template_unchanged():
     assert response.status_code == 200
     assert 'src="/static/beauty-master.png"' in response.text
     assert "document.createElement('details')" in response.text
+    assert "priceFmt.format(item.price_kzt)" in response.text
+    assert "item.description" in response.text
     assert "Время" in response.text
 
     photo = client.get("/static/beauty-master.png")
@@ -179,11 +221,42 @@ def test_calendar_event_contains_service_and_occupies_full_duration():
           patch.object(calendar_api, "service", return_value=API())):
         calendar_api.create_booking(MASTER, start, "Анна", "+77001234567", service_info)
     booking_body = calls[0][1]["body"]
-    assert booking_body["end"]["dateTime"] == (start + timedelta(hours=2)).isoformat()
-    assert "Маникюр с гель-лаком" in booking_body["summary"]
+    assert booking_body["end"]["dateTime"] == (start + timedelta(minutes=90)).isoformat()
+    assert "Маникюр без укрепления" in booking_body["summary"]
     assert "Услуга: Маникюр" in booking_body["description"]
+    assert "Стоимость: 6 000 ₸" in booking_body["description"]
     assert calls[1][1]["body"]["end"]["dateTime"] == start.isoformat()
-    assert calls[2][1]["body"]["start"]["dateTime"] == (start + timedelta(hours=2)).isoformat()
+    assert calls[2][1]["body"]["start"]["dateTime"] == (start + timedelta(minutes=90)).isoformat()
+
+
+def test_telegram_notification_includes_price():
+    sent = []
+
+    class Response:
+        def raise_for_status(self):
+            pass
+
+    class Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_):
+            return None
+
+        async def post(self, url, json):
+            sent.append(json["text"])
+            return Response()
+
+    with (patch.dict("os.environ", {"TELEGRAM_BOT_TOKEN": "test-token"}),
+          patch.object(telegram.httpx, "AsyncClient", return_value=Client())):
+        asyncio.run(telegram.notify(
+            {**MASTER, "telegram_chat_id": "123"}, "Анна", "+77001234567",
+            datetime(2026, 11, 23, 10, tzinfo=ZoneInfo("Asia/Almaty")),
+            find_service(MASTER, "sugaring-all-inclusive"),
+        ))
+
+    assert "Комплекс «Всё включено» (90 мин)" in sent[0]
+    assert "Стоимость: 12 000 ₸" in sent[0]
 
 
 def test_migration_preserves_existing_master(tmp_path):
